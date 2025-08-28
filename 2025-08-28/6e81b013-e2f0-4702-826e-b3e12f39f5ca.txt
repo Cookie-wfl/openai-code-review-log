@@ -1,0 +1,70 @@
+ChatMessage(role=assistant, content=, reasoningContent=根据提供的git diff记录，我将对代码进行评审。主要关注以下几个方面：
+1. 代码变更的合理性
+2. 潜在的问题或改进点
+3. 代码风格和最佳实践
+
+### 变更概述
+本次变更主要涉及三个文件：
+1. `.github/workflows/main-maven.yml`：在环境变量中添加了`PROJECT_NAME`。
+2. `openai-code-review-sdk/src/main/java/cn/sour/sdk/Git/GitUltils.java`：
+   - 在`getLatestCommitInfo`方法中添加了注释，并调整了代码结构（添加了空行和注释）。
+   - 将捕获的异常从`IOException | GitAPIException`改为`Exception`。
+   - 在方法末尾添加了一个空行。
+3. `openai-code-review-sdk/src/main/java/cn/sour/sdk/OpenAiCodeReview.java`：
+   - 取消注释了之前被注释的代码，并进行了修改。
+   - 添加了对`PROJECT_NAME`环境变量的检查。
+   - 在发送微信通知时，使用环境变量中的`PROJECT_NAME`和从Git获取的提交信息。
+
+### 详细评审
+
+#### 1. `.github/workflows/main-maven.yml`
+- **变更**：添加了环境变量`PROJECT_NAME`，其值来自GitHub Secrets中的`PROJECT_NAME`。
+- **评审**：
+  - 这是一个合理的变更，因为现在代码需要项目名称来发送通知。
+  - 确保在GitHub仓库的Secrets中设置了`PROJECT_NAME`，否则工作流会失败。
+
+#### 2. `GitUltils.java`
+- **变更1**：在`getLatestCommitInfo`方法中添加了注释和空行。
+  - **评审**：
+    - 添加注释有助于理解代码，特别是“获取最近一次提交”和“提取项目名称（从远程URL）”的注释。
+    - 但是，注释中提到“提取项目名称（从远程URL）”，但实际代码中并没有提取项目名称。方法返回的Map中只包含作者名称、邮箱和提交消息。这可能会引起误导。
+    - 建议要么实现提取项目名称的功能，要么修改注释以匹配实际行为。
+
+- **变更2**：将捕获的异常从`IOException | GitAPIException`改为`Exception`。
+  - **评审**：
+    - 这是一个不好的实践。捕获过于宽泛的异常（如`Exception`）会掩盖潜在的问题，使得调试变得困难。
+    - 原始代码捕获特定的异常（`IOException`和`GitAPIException`）是更好的做法，因为它明确了可能发生的异常类型。
+    - 建议恢复为捕获特定的异常，除非有充分的理由需要捕获所有异常。
+
+- **变更3**：在方法末尾添加了一个空行。
+  - **评审**：
+    - 这只是一个格式上的调整，没有功能影响。但保持代码风格一致是好的。
+
+#### 3. `OpenAiCodeReview.java`
+- **变更1**：取消注释并修改了代码。
+  - **评审**：
+    - 取消注释是合理的，因为现在需要启用这些功能。
+    - 添加了对`PROJECT_NAME`环境变量的检查，这是一个好的实践，可以避免在缺少必要配置时运行失败。
+
+- **变更2**：在发送微信通知时，使用`projectName`和提交信息。
+  - **评审**：
+    - 使用环境变量中的项目名称是正确的，但注意在`WXSendMsg.sendMessage`方法中，第一个参数是项目名称，第二个参数是提交消息。这里使用了`repo.get("commitMessage")`，这是正确的。
+    - 但是，在`GitUltils.getLatestCommitInfo`方法中，返回的Map中确实有`commitMessage`键，所以这里没有问题。
+
+### 潜在问题与建议
+1. **GitUltils.java中的注释误导**：
+   - 注释提到“提取项目名称（从远程URL）”，但实际代码没有提取。建议：
+     - 如果需要项目名称，应该从Git远程URL中提取并添加到返回的Map中。
+     - 如果不需要，则删除该注释。
+
+2. **异常处理过于宽泛**：
+   - 在`GitUltils.java`中，将异常捕获改为`Exception`是不合适的。建议恢复为`IOException | GitAPIException`。
+
+3. **环境变量检查**：
+   - 在`OpenAiCodeReview.java`中，对`PROJECT_NAME`的检查是好的，但错误消息可以更具体，例如“PROJECT_NAME environment variable is not set”。
+
+4. **代码格式**：
+   - 在`OpenAiCodeReview.java`中，取消注释后，代码格式可以进一步优化，例如删除多余的空行，使代码更紧凑。
+
+5. **方法命名**：
+   - `GitUltils`类名中的`, audio=null, name=null, toolCalls=null, toolCallId=null)
